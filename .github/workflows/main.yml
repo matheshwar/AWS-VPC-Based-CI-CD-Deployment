@@ -29,10 +29,17 @@ jobs:
           docker build -t $DOCKERHUB_USERNAME/api-app ./backend
           docker push $DOCKERHUB_USERNAME/api-app
 
-  deploy:
+    deploy:
     needs: build-and-push
     runs-on: ubuntu-latest
     steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
       - name: Deploy to UI EC2
         run: |
           aws ssm send-command             --region $AWS_REGION             --document-name "AWS-RunShellScript"             --targets "Key=tag:Name,Values=ui-server"             --comment "Deploy UI"             --parameters 'commands=[
@@ -54,3 +61,4 @@ jobs:
               "docker rm -f api-app || true",
               "docker run -d --name api-app -p 5000:5000 $DOCKERHUB_USERNAME/api-app"
             ]'
+
