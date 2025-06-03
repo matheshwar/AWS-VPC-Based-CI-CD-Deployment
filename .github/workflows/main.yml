@@ -21,12 +21,12 @@ jobs:
 
       - name: Build and Push UI
         run: |
-          docker build -t $DOCKERHUB_USERNAME/ui-app ./ui
+          docker build -t $DOCKERHUB_USERNAME/ui-app ./frontend
           docker push $DOCKERHUB_USERNAME/ui-app
 
       - name: Build and Push API
         run: |
-          docker build -t $DOCKERHUB_USERNAME/api-app ./api
+          docker build -t $DOCKERHUB_USERNAME/api-app ./backend
           docker push $DOCKERHUB_USERNAME/api-app
 
   deploy:
