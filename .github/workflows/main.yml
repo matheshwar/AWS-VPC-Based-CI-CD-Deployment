@@ -1,4 +1,4 @@
-name: CI/CD for UI and APIIII
+name: CI/CD for UI and API
 
 on:
   push:
@@ -29,7 +29,7 @@ jobs:
           docker build -t $DOCKERHUB_USERNAME/api-app ./backend
           docker push $DOCKERHUB_USERNAME/api-app
 
-    deploy:
+  deploy:
     needs: build-and-push
     runs-on: ubuntu-latest
     steps:
@@ -42,23 +42,34 @@ jobs:
 
       - name: Deploy to UI EC2
         run: |
-          aws ssm send-command             --region $AWS_REGION             --document-name "AWS-RunShellScript"             --targets "Key=tag:Name,Values=ui-server"             --comment "Deploy UI"             --parameters 'commands=[
+          aws ssm send-command \
+            --region $AWS_REGION \
+            --document-name "AWS-RunShellScript" \
+            --targets "Key=tag:Name,Values=ui-server" \
+            --comment "Deploy UI" \
+            --parameters 'commands=[
               "apt update -y",
               "apt install -y docker.io",
               "systemctl start docker",
               "docker pull $DOCKERHUB_USERNAME/ui-app",
               "docker rm -f ui-app || true",
               "docker run -d --name ui-app -p 80:80 $DOCKERHUB_USERNAME/ui-app"
-            ]'
+            ]' \
+            --output text
 
       - name: Deploy to API EC2
         run: |
-          aws ssm send-command             --region $AWS_REGION             --document-name "AWS-RunShellScript"             --targets "Key=tag:Name,Values=api-server"             --comment "Deploy API"             --parameters 'commands=[
+          aws ssm send-command \
+            --region $AWS_REGION \
+            --document-name "AWS-RunShellScript" \
+            --targets "Key=tag:Name,Values=api-server" \
+            --comment "Deploy API" \
+            --parameters 'commands=[
               "apt update -y",
               "apt install -y docker.io",
               "systemctl start docker",
               "docker pull $DOCKERHUB_USERNAME/api-app",
               "docker rm -f api-app || true",
               "docker run -d --name api-app -p 5000:5000 $DOCKERHUB_USERNAME/api-app"
-            ]'
-
+            ]' \
+            --output text
