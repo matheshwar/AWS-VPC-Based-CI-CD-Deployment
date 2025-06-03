@@ -1,0 +1,56 @@
+name: CI/CD for UI and API
+
+on:
+  push:
+    branches: [ main ]
+
+env:
+  DOCKERHUB_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+  DOCKERHUB_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+  AWS_REGION: us-east-1
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Log in to Docker Hub
+        run: echo "${DOCKERHUB_PASSWORD}" | docker login -u "${DOCKERHUB_USERNAME}" --password-stdin
+
+      - name: Build and Push UI
+        run: |
+          docker build -t $DOCKERHUB_USERNAME/ui-app ./ui
+          docker push $DOCKERHUB_USERNAME/ui-app
+
+      - name: Build and Push API
+        run: |
+          docker build -t $DOCKERHUB_USERNAME/api-app ./api
+          docker push $DOCKERHUB_USERNAME/api-app
+
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to UI EC2
+        run: |
+          aws ssm send-command             --region $AWS_REGION             --document-name "AWS-RunShellScript"             --targets "Key=tag:Name,Values=ui-server"             --comment "Deploy UI"             --parameters 'commands=[
+              "apt update -y",
+              "apt install -y docker.io",
+              "systemctl start docker",
+              "docker pull $DOCKERHUB_USERNAME/ui-app",
+              "docker rm -f ui-app || true",
+              "docker run -d --name ui-app -p 80:80 $DOCKERHUB_USERNAME/ui-app"
+            ]'
+
+      - name: Deploy to API EC2
+        run: |
+          aws ssm send-command             --region $AWS_REGION             --document-name "AWS-RunShellScript"             --targets "Key=tag:Name,Values=api-server"             --comment "Deploy API"             --parameters 'commands=[
+              "apt update -y",
+              "apt install -y docker.io",
+              "systemctl start docker",
+              "docker pull $DOCKERHUB_USERNAME/api-app",
+              "docker rm -f api-app || true",
+              "docker run -d --name api-app -p 5000:5000 $DOCKERHUB_USERNAME/api-app"
+            ]'
